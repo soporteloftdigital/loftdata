@@ -5,11 +5,11 @@ $data = str_replace('\\', '', $data_in);
 $form_collection = json_decode($data);
 $field_status; $ld_colsnames; $log; $num;
 $insert = false;
-//Luego de verificar la existencia de campos y crearlos, verifica si existe el cliente, proyecto o formulario
+//GetExists
 function &getExistencia($client, $project, $form)
 {
     global $wpdb;
-    //cliente
+    //Client verify
     $wpdb->get_results($client);
     $num_c = $wpdb->num_rows;
     if($num_c==0):
@@ -17,7 +17,7 @@ function &getExistencia($client, $project, $form)
     else:
         $log = "";
     endif;
-    //Proyecto
+    //Project verify
     $wpdb->get_results($project);
     $num_p = $wpdb->num_rows;
     if($num_p==0):
@@ -25,7 +25,7 @@ function &getExistencia($client, $project, $form)
     else:
         $log = "";
     endif;
-    //formualrio
+    //Form verify
     $wpdb->get_results($form);
     $num_f = $wpdb->num_rows;
     if($num_f==0):
@@ -35,9 +35,7 @@ function &getExistencia($client, $project, $form)
     endif;
     return $log;
 }
-/*
-Obtiene la ip real del cliente
-*/
+/*Get client ip*/
 function &getRealIpAddr()
 {
   if (!empty($_SERVER['HTTP_CLIENT_IP']))
@@ -55,10 +53,10 @@ function &getRealIpAddr()
   }
   return $ip;
 }
-//Verificar existencia de campos
+//Verify fields on db
 foreach($form_collection as $item) :
     foreach($item as $nombre_campo => $valor_campo) :
-        //comprobar API
+        //Verify API
         if($nombre_campo == "API_KEY"):
             $rest_api = explode("|", $valor_campo);
             if($insert==false): 
@@ -66,7 +64,7 @@ foreach($form_collection as $item) :
                 $q_project = "SELECT project_id FROM `ld_lfdata_forms` where project_id = '".$rest_api[1]."' ";
                 $q_form = "SELECT form_id FROM `ld_lfdata_forms` where form_id = '".$rest_api[2]."' ";
                 $general_log = &getExistencia($q_client, $q_project, $q_form);
-                //En caso de que no exista el cliente, proyecto oo formulario
+                //If no exists client, project or form id
                 if($general_log <> "" ):
                     $insert = false;
                     $field_status = true;
@@ -76,7 +74,7 @@ foreach($form_collection as $item) :
                 endif;
             endif;
         endif;
-        //preguntar si existe el campo en la bd
+        //Verify if field exist on db
         if($nombre_campo == "nombre_campo" && $insert == true):
             $wpdb->get_results("SHOW COLUMNS FROM `ld_lfdata_main` LIKE '".$valor_campo."'");
             $num = $wpdb->num_rows;
@@ -90,18 +88,18 @@ foreach($form_collection as $item) :
         endif;
     endforeach;
 endforeach;
-//insert data
+//Insert data
 if($field_status==true):
     $ld_colsnames = rtrim($ld_colsnames, ',');
     $ld_values = rtrim($ld_values, ',');
     $api_key = $rest_api[0].'|'.$rest_api[1].'|'.$rest_api[2];
     $client_ip = &getRealIpAddr();
-    //En caso de que no exista el cliente, proyecto oo formulario
+    //If no exists client, project or form id
     if($general_log <> "" ):
         $general_log = "Se encontraron los siguientes errores: ".$general_log;
         $query_log = "INSERT INTO `ld_lfdata_fail` (`id`, `ip`, `api_key`, `form_id`, `log`) VALUES (NULL, '".$client_ip."', '".$api_key."', '".$rest_api[2]."', '".$general_log."');";
         $wpdb->query($query_log);
-    //Si existe lo agrega
+    //If exist inser on data base
     elseif($general_log == "" ):
         $query = "INSERT INTO `ld_lfdata_main`(  `api_key`, ".$ld_colsnames.") VALUES (' ".$api_key."' ,".$ld_values.");";
         $wpdb->query($query);
